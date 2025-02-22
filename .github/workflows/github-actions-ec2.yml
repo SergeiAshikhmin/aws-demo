@@ -3,7 +3,7 @@ name: Deploy Vue.js to EC2
 on:
   push:
     branches:
-      - main  # Deploy when code is pushed to the main branch
+      - main  # Deploy when code is pushed to main branch
 
 jobs:
   deploy:
@@ -15,18 +15,24 @@ jobs:
         uses: actions/checkout@v2
 
       - name: 🔍 Verify Files Exist
-        run: ls -la  # Debugging: See if package.json is in the right place
+        run: ls -la ${{ github.workspace }}  # Check where package.json is
 
       - name: 📦 Install Node.js
         uses: actions/setup-node@v3
         with:
           node-version: 18
 
-      - name: 📂 Install Dependencies
-        run: npm install  # ✅ No need to cd into vue-project
+      - name: 📂 Change to Correct Directory and Install Dependencies
+        run: |
+          if [ -f "package.json" ]; then
+            npm install
+          else
+            echo "❌ Error: package.json not found!"
+            exit 1
+          fi
 
       - name: 🏗️ Build Vue.js Project
-        run: npm run build  # ✅ Runs in root, not vue-project/
+        run: npm run build
 
       - name: 🚀 Deploy Build Files to EC2
         uses: appleboy/scp-action@master
