@@ -3,7 +3,7 @@ name: Deploy Vue.js to EC2
 on:
   push:
     branches:
-      - main  # Deploy when code is pushed to the main branch
+      - main
 
 jobs:
   deploy:
@@ -11,49 +11,42 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout the Repository
+      - name: ✅ Checkout Repository
         uses: actions/checkout@v2
 
-      - name: Install Node.js
+      - name: 🔍 Verify Files Exist
+        run: ls -la  # Debugging: See if package.json is in the right place
+
+      - name: 📦 Install Node.js
         uses: actions/setup-node@v3
         with:
           node-version: 18
 
-      - name: Install Dependencies
-        run: npm install
+      - name: 📂 Change Directory to Vue Project
+        run: cd vue-project && npm install
+        working-directory: vue-project  # Make sure it runs in the correct folder
 
-      - name: Build Vue.js Project
+      - name: 🏗️ Build Vue.js Project
         run: npm run build
+        working-directory: vue-project  # Ensure build runs in the right place
 
-      - name: Deploy Build Files to EC2
+      - name: 🚀 Deploy Build Files to EC2
         uses: appleboy/scp-action@master
         with:
           host: ${{ secrets.HOST_DNS }}
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          source: "dist/*"
+          source: "vue-project/dist/*"
           target: "/home/ubuntu/vue-project/dist"
 
-      - name: Restart Vue.js Server on EC2
+      - name: 🔄 Restart Vue.js Server on EC2
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.HOST_DNS }}
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            # Ensure Node.js is installed
-            if ! command -v node &> /dev/null; then
-              curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-              sudo apt-get install -y nodejs
-            fi
-
-            # Navigate to the Vue.js project directory
             cd /home/ubuntu/vue-project
-
-            # Stop any previous `serve` process
             sudo pkill -f "serve"
-
-            # Start `serve` in the background on port 80
             nohup serve -s dist -l 80 > serve.log 2>&1 &
-
             echo "Vue.js app deployed and running on port 80!"
