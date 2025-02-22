@@ -3,7 +3,7 @@ name: Deploy Vue.js to EC2
 on:
   push:
     branches:
-      - main
+      - main  # Deploy when code is pushed to the main branch
 
 jobs:
   deploy:
@@ -22,13 +22,11 @@ jobs:
         with:
           node-version: 18
 
-      - name: 📂 Change Directory to Vue Project
-        run: cd vue-project && npm install
-        working-directory: vue-project  # Make sure it runs in the correct folder
+      - name: 📂 Install Dependencies
+        run: npm install  # ✅ No need to cd into vue-project
 
       - name: 🏗️ Build Vue.js Project
-        run: npm run build
-        working-directory: vue-project  # Ensure build runs in the right place
+        run: npm run build  # ✅ Runs in root, not vue-project/
 
       - name: 🚀 Deploy Build Files to EC2
         uses: appleboy/scp-action@master
@@ -36,7 +34,7 @@ jobs:
           host: ${{ secrets.HOST_DNS }}
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          source: "vue-project/dist/*"
+          source: "dist/*"
           target: "/home/ubuntu/vue-project/dist"
 
       - name: 🔄 Restart Vue.js Server on EC2
