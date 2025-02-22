@@ -1,9 +1,9 @@
-name: Push-to-EC2
+name: Deploy Vue.js to EC2
 
 on:
   push:
     branches:
-      - main
+      - main  # Deploy when code is pushed to the main branch
 
 jobs:
   deploy:
@@ -11,37 +11,49 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout the files
+      - name: Checkout the Repository
         uses: actions/checkout@v2
 
-      - name: Deploy to Server 1
-        uses: easingthemes/ssh-deploy@main
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
-          REMOTE_HOST: ${{ secrets.HOST_DNS }}
-          REMOTE_USER: ${{ secrets.USERNAME }}
-          TARGET: ${{ secrets.TARGET_DIR }}
+      - name: Install Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
 
-      - name: Executing remote SSH commands
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Build Vue.js Project
+        run: npm run build
+
+      - name: Deploy Build Files to EC2
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.HOST_DNS }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "dist/*"
+          target: "/home/ubuntu/vue-project/dist"
+
+      - name: Restart Vue.js Server on EC2
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.HOST_DNS }}
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            # Update system and install dependencies
-            sudo apt-get update
-            sudo apt-get install -y apache2 nodejs npm
-            
-            # Move to project directory
-            cd ${{ secrets.TARGET_DIR }}
+            # Ensure Node.js is installed
+            if ! command -v node &> /dev/null; then
+              curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+              sudo apt-get install -y nodejs
+            fi
 
-            # Install project dependencies
-            npm install
+            # Navigate to the Vue.js project directory
+            cd /home/ubuntu/vue-project
 
-            # Build Vue.js project
-            npm run build
+            # Stop any previous `serve` process
+            sudo pkill -f "serve"
 
-            # Move build files to Apache's web directory
-            sudo rm -rf /var/www/html/*
-            sudo cp -r dist/* /var/www/html/
+            # Start `serve` in the background on port 80
+            nohup serve -s dist -l 80 > serve.log 2>&1 &
+
+            echo "Vue.js app deployed and running on port 80!"
