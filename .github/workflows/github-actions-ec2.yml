@@ -45,6 +45,3 @@ jobs:
             # Move build files to Apache's web directory
             sudo rm -rf /var/www/html/*
             sudo cp -r dist/* /var/www/html/
-
-            # Restart Apache to serve new files
-            sudo systemctl restart apache2
